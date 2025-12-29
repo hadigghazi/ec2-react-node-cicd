@@ -9,7 +9,7 @@ permissions:
   deployments: write
 
 env:
-  PROD_URL: https://capadev-outcomes-platform.com
+  PROD_URL: https://www.capadev-outcomes-platform.com/
 
 jobs:
   test:
@@ -63,9 +63,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Creates a "deployment" record in GitHub with a URL
+      # Start a deployment and output a deployment_id
       - name: Start production deployment
-        id: deployment
+        id: gh_deploy
         uses: bobheadxi/deployments@v1
         with:
           step: start
@@ -123,23 +123,24 @@ jobs:
             sudo nginx -t
             sudo systemctl reload nginx
 
-      - name: Finish production deployment
+      - name: Finish production deployment (success)
         if: success()
         uses: bobheadxi/deployments@v1
         with:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
-          env: production
-          status: success
+          deployment_id: ${{ steps.gh_deploy.outputs.deployment_id }}
           env_url: ${{ env.PROD_URL }}
+          status: success
 
-      - name: Mark production deployment failed
+      # Finish the deployment (failure)
+      - name: Finish production deployment (failure)
         if: failure()
         uses: bobheadxi/deployments@v1
         with:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
-          env: production
+          deployment_id: ${{ steps.gh_deploy.outputs.deployment_id }}
           status: failure
 
   release:
