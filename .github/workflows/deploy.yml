@@ -6,6 +6,10 @@ on:
 
 permissions:
   contents: write
+  deployments: write
+
+env:
+  PROD_URL: https://capadev-outcomes-platform.com
 
 jobs:
   test:
@@ -59,6 +63,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Creates a "deployment" record in GitHub with a URL
+      - name: Start production deployment
+        id: deployment
+        uses: bobheadxi/deployments@v1
+        with:
+          step: start
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
+          ref: ${{ github.sha }}
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -71,8 +85,11 @@ jobs:
             cd /home/deploy/app
             git pull origin main
 
+            # -----------------------
             # Backend
+            # -----------------------
             cd backend
+
             cat > .env << EOF
             PORT=4000
             DATABASE_URL="${{ secrets.DATABASE_URL }}"
@@ -89,8 +106,11 @@ jobs:
 
             pm2 save
 
+            # -----------------------
             # Frontend
+            # -----------------------
             cd ../frontend
+
             cat > .env.production << EOF
             VITE_API_URL=/api
             EOF
@@ -99,8 +119,28 @@ jobs:
             npm run build
 
             sudo rsync -a --delete dist/ /var/www/todo-app/
+
             sudo nginx -t
             sudo systemctl reload nginx
+
+      - name: Finish production deployment
+        if: success()
+        uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
+          status: success
+          env_url: ${{ env.PROD_URL }}
+
+      - name: Mark production deployment failed
+        if: failure()
+        uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
+          status: failure
 
   release:
     runs-on: ubuntu-latest
@@ -109,7 +149,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # needed for tags/history
+          fetch-depth: 0
 
       - name: Configure git
         run: |
@@ -119,7 +159,6 @@ jobs:
       - name: Bump version (patch)
         id: bump
         run: |
-          # bumps root package.json version, creates a commit
           npm version patch -m "chore(release): v%s [skip ci]"
           echo "tag=v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
@@ -127,8 +166,12 @@ jobs:
         run: |
           git push origin main --follow-tags
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (with deployed URL)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.bump.outputs.tag }}
           generate_release_notes: true
+          body: |
+            ✅ Deployed URL: ${{ env.PROD_URL }}
+            🔖 Version: ${{ steps.bump.outputs.tag }}
+            🧾 Commit: ${{ github.sha }}
