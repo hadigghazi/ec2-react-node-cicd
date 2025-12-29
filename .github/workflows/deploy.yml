@@ -63,7 +63,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Start a deployment and output a deployment_id
       - name: Start production deployment
         id: gh_deploy
         uses: bobheadxi/deployments@v1
@@ -129,17 +128,18 @@ jobs:
         with:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
           deployment_id: ${{ steps.gh_deploy.outputs.deployment_id }}
           env_url: ${{ env.PROD_URL }}
           status: success
 
-      # Finish the deployment (failure)
       - name: Finish production deployment (failure)
         if: failure()
         uses: bobheadxi/deployments@v1
         with:
           step: finish
           token: ${{ secrets.GITHUB_TOKEN }}
+          env: production
           deployment_id: ${{ steps.gh_deploy.outputs.deployment_id }}
           status: failure
 
