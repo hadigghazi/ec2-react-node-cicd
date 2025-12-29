@@ -67,7 +67,7 @@ export default function App() {
       <div className="card">
         <div className="header">
           <div>
-            <h1>Todos</h1>
+            <h1>Todo List</h1>
           </div>
           <div className="badge">
             <span>✅</span>
@@ -82,7 +82,7 @@ export default function App() {
             className="input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="New todo title..."
+            placeholder="New todo..."
             aria-label="todo-title"
           />
           <button className="btn btnPrimary" type="submit">
